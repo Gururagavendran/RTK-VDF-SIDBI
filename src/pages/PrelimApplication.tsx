@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { createPrelimApplication, updatePrelimData, getApplicationById, type Application } from "@/lib/applicationStore";
+import { useGetApplicationByIdQuery, useCreatePrelimApplicationMutation, useUpdatePrelimDataMutation } from "@/store/api";
 import { getSession } from "@/lib/authStore";
 import { useEffect, useMemo, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
@@ -60,14 +60,12 @@ const defaultValues: Partial<PrelimFormValues> = {
 // ── Mode detection ───────────────────────────────────────────────────────────
 type FormMode = "fill" | "edit" | "view";
 
-function deriveMode(app: Application | null, isOwner: boolean): FormMode {
+function deriveMode(app: any | null, isOwner: boolean): FormMode {
   if (!app) return "fill";
-  // Owner can edit only if in revision or draft states
   if (isOwner) {
     const editableSteps = ["prelim_revision"];
     if (editableSteps.includes(app.workflowStep)) return "edit";
   }
-  // If accessed with ?edit and it's the owner
   return "view";
 }
 
@@ -80,15 +78,10 @@ const PrelimApplication = () => {
   const appId = editId || viewId;
   const session = getSession();
 
-  const [app, setApp] = useState<Application | null>(null);
+  const { data: app = null } = useGetApplicationByIdQuery(appId!, { skip: !appId });
+  const [createPrelim] = useCreatePrelimApplicationMutation();
+  const [updatePrelim] = useUpdatePrelimDataMutation();
   const [additionalDocs, setAdditionalDocs] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (appId) {
-      const found = getApplicationById(appId);
-      setApp(found ?? null);
-    }
-  }, [appId]);
 
   const isOwner = !!session && !!app && app.applicantEmail === session.email;
   const isSidbi = session?.userType === "sidbi";
@@ -125,10 +118,10 @@ const PrelimApplication = () => {
     const allTogglesMet = eligibilityParams.every((p) => data[p.key as EligibilityKey] === true);
     if (!allTogglesMet) { toast({ title: "Eligibility Not Met", description: "All eligibility parameters must be set to Yes before submitting.", variant: "destructive" }); return; }
     if (editId && app) {
-      updatePrelimData(editId, data);
+      updatePrelim({ id: editId, prelimData: data });
       toast({ title: "Application Updated", description: "Your application has been updated successfully." });
     } else {
-      createPrelimApplication(session.email, data);
+      createPrelim({ email: session.email, prelimData: data });
       toast({ title: "Preliminary Application Submitted", description: "Your application has been saved successfully." });
     }
     form.reset(defaultValues as PrelimFormValues);

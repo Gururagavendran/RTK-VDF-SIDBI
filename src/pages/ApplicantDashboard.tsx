@@ -9,10 +9,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { getApplicationsByEmail, revertEmptyDetailedApplications, deleteApplication, type Application } from "@/lib/applicationStore";
+import { useGetApplicationsQuery, useDeleteApplicationMutation } from "@/store/api";
 import { getSession } from "@/lib/authStore";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Eye, Trash2, FileText, Clock, CheckCircle2, XCircle, LayoutDashboard, ArrowUpDown } from "lucide-react";
+import { Plus, Eye, Trash2, FileText, Clock, CheckCircle2, XCircle, ArrowUpDown } from "lucide-react";
+import type { Application } from "@/lib/applicationStore";
 
 const statusLabelMap: Record<string, string> = {
   recommend_pursual: "RECOMMENDED FOR APPROVAL",
@@ -29,23 +30,26 @@ type StatFilter = "all" | "active" | "approved" | "rejected";
 const ApplicantDashboard = () => {
   const navigate = useNavigate();
   const session = getSession();
-  const [apps, setApps] = useState<Application[]>([]);
   const [statFilter, setStatFilter] = useState<StatFilter>("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
 
+  const { data: apps = [], isLoading, refetch } = useGetApplicationsQuery(
+    session ? { email: session.email } : undefined,
+    { skip: !session || session.userType !== "applicant" }
+  );
+  const [deleteApp] = useDeleteApplicationMutation();
+
   useEffect(() => {
     if (!session || session.userType !== "applicant") { navigate("/login"); return; }
-    revertEmptyDetailedApplications();
-    setApps(getApplicationsByEmail(session.email));
   }, []);
 
   useEffect(() => {
-    const handler = () => { if (session) setApps(getApplicationsByEmail(session.email)); };
+    const handler = () => refetch();
     window.addEventListener("focus", handler);
     return () => window.removeEventListener("focus", handler);
-  }, [session]);
+  }, [refetch]);
 
   const active = apps.filter(a => !["approved", "rejected"].includes(a.status)).length;
   const approved = apps.filter(a => a.status === "approved").length;
@@ -53,22 +57,15 @@ const ApplicantDashboard = () => {
 
   const filteredApps = useMemo(() => {
     let result = [...apps];
-
-    // Stat card filter
     if (statFilter === "active") result = result.filter(a => !["approved", "rejected"].includes(a.status));
     else if (statFilter === "approved") result = result.filter(a => a.status === "approved");
     else if (statFilter === "rejected") result = result.filter(a => a.status === "rejected");
-
-    // Column filters
     if (stageFilter !== "all") result = result.filter(a => a.stage === stageFilter);
     if (statusFilter !== "all") result = result.filter(a => a.status === statusFilter);
-
-    // Sort by date
     result.sort((a, b) => {
       const diff = new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
       return sortOrder === "desc" ? diff : -diff;
     });
-
     return result;
   }, [apps, statFilter, stageFilter, statusFilter, sortOrder]);
 
@@ -81,6 +78,16 @@ const ApplicantDashboard = () => {
     { label: "APPROVED", value: approved, icon: CheckCircle2, className: "border-l-4 border-success", filter: "approved" as StatFilter },
     { label: "REJECTED", value: rejected, icon: XCircle, className: "border-l-4 border-destructive", filter: "rejected" as StatFilter },
   ];
+
+  if (isLoading) {
+    return (
+      <AppLayout title="SIDBI — Applicant Portal" subtitle="Venture Debt Application System" noPadding>
+        <div className="flex-1 flex items-center justify-center py-20">
+          <p className="text-muted-foreground">Loading applications…</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title="SIDBI — Applicant Portal" subtitle="Venture Debt Application System" noPadding>
@@ -96,7 +103,6 @@ const ApplicantDashboard = () => {
             </Button>
           </div>
 
-          {/* Clickable Stat cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {statCards.map(({ label, value, icon: Icon, className, filter }) => (
               <div key={label}
@@ -112,7 +118,6 @@ const ApplicantDashboard = () => {
             ))}
           </div>
 
-          {/* Table */}
           <div className="bg-card border border-border">
             <div className="gov-section-header bg-muted px-6 py-3 border-b border-border flex items-center justify-between">
               <div>
@@ -189,10 +194,9 @@ const ApplicantDashboard = () => {
                             <Eye className="h-4 w-4" />
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => {
+                            onClick={async () => {
                               if (window.confirm("Are you sure you want to delete this application?")) {
-                                deleteApplication(app.id);
-                                setApps((prev) => prev.filter((a) => a.id !== app.id));
+                                await deleteApp(app.id);
                                 toast({ title: "Application Deleted" });
                               }
                             }} title="Delete">
