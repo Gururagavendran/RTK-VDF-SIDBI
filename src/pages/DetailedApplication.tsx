@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Trash2, ChevronRight, Upload } from "lucide-react";
-import { submitDetailedApplication, getApplicationById } from "@/lib/applicationStore";
+import { useGetApplicationByIdQuery, useSubmitDetailedApplicationMutation } from "@/store/api";
 import { getSession } from "@/lib/authStore";
 import UnitEconomicsGrid, { unitEconomicsRows, monthColumns } from "@/components/detailed-app/UnitEconomicsGrid";
 import FacilitiesApplicant, { emptyFacilityRow, type FacilityRow } from "@/components/detailed-app/FacilitiesApplicant";
@@ -124,15 +124,17 @@ const DetailedApplication = () => {
   const [sanctionLetterFile, setSanctionLetterFile] = useState("");
   const [assocSanctionLetterFile, setAssocSanctionLetterFile] = useState("");
 
+  const { data: existingApp } = useGetApplicationByIdQuery(appId, { skip: !appId });
+  const [submitDetailed] = useSubmitDetailedApplicationMutation();
+
   useEffect(() => {
     if (!appId) return;
-    const app = getApplicationById(appId);
-    if (!app?.detailedData) {
+    if (!existingApp?.detailedData) {
       try { const draftRaw = localStorage.getItem(`${DRAFT_KEY}_${appId}`); if (draftRaw) loadFormData(JSON.parse(draftRaw)); } catch {}
       return;
     }
-    loadFormData(app.detailedData);
-  }, [appId]);
+    loadFormData(existingApp.detailedData);
+  }, [appId, existingApp]);
 
   const loadFormData = (d: any) => {
     if (!d) return;
@@ -230,7 +232,7 @@ const DetailedApplication = () => {
       aifConfirmation: { name: aifName, place: aifPlace, date: aifDate, signatory: aifSignatory, signFile: aifSignFile },
       submittedAt: new Date().toISOString(),
     };
-    if (appId) submitDetailedApplication(appId, payload);
+    if (appId) submitDetailed({ appId, detailedData: payload });
     localStorage.removeItem(`${DRAFT_KEY}_${appId}`);
     toast({ title: "Detailed Application Submitted", description: "Your application has been saved successfully." });
     navigate("/applicant/dashboard");

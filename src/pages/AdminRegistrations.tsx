@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -6,31 +6,24 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
-import { getRegistrations, updateRegistrationStatus, type Registration } from "@/lib/registrationStore";
+import { useGetRegistrationsQuery, useUpdateRegistrationStatusMutation } from "@/store/api";
+import type { Registration } from "@/lib/registrationStore";
 import { CheckCircle, XCircle, Eye, Users, Clock, CheckCheck, XOctagon, LayoutDashboard, Settings, Shield } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Link, useNavigate } from "react-router-dom";
 import { getSession } from "@/lib/authStore";
-import { GovSidebar } from "@/components/layout/GovInternal";
 import AppLayout from "@/components/layout/AppLayout";
 import GovStatusBadge from "@/components/GovStatusBadge";
-
-const sidebarItems = [
-  { label: "Dashboard", href: "/admin/registrations", icon: <LayoutDashboard className="h-4 w-4" /> },
-  { label: "Settings", href: "/admin/registrations", icon: <Settings className="h-4 w-4" /> },
-];
 
 const AdminRegistrations = () => {
   const navigate = useNavigate();
   const session = getSession();
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const { data: registrations = [], isLoading } = useGetRegistrationsQuery();
+  const [updateStatus] = useUpdateRegistrationStatusMutation();
   const [selected, setSelected] = useState<Registration | null>(null);
 
-  useEffect(() => { setRegistrations(getRegistrations()); }, []);
-
-  const handleAction = (id: string, status: "approved" | "rejected") => {
-    updateRegistrationStatus(id, status);
-    setRegistrations(getRegistrations());
+  const handleAction = async (id: string, status: "approved" | "rejected") => {
+    await updateStatus({ id, status });
     setSelected(null);
     toast({ title: `Registration ${status === "approved" ? "Approved" : "Rejected"}`, description: `The registration has been ${status}.` });
   };
@@ -54,7 +47,6 @@ const AdminRegistrations = () => {
             <p className="text-sm text-muted-foreground mt-1">Review and approve enterprise registrations for the SIDBI portal.</p>
           </div>
 
-          {/* Stat cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: "TOTAL", value: registrations.length, icon: Users, className: "border-l-4 border-primary" },
@@ -72,14 +64,15 @@ const AdminRegistrations = () => {
             ))}
           </div>
 
-          {/* Table */}
           <div className="bg-card border border-border">
             <div className="gov-section-header bg-muted px-6 py-3 border-b border-border">
               <h2 className="font-bold text-foreground text-sm uppercase tracking-wider">All Registrations</h2>
               <p className="text-xs text-muted-foreground mt-0.5">{registrations.length} total applications</p>
             </div>
 
-            {registrations.length === 0 ? (
+            {isLoading ? (
+              <div className="py-16 text-center"><p className="text-muted-foreground">Loading…</p></div>
+            ) : registrations.length === 0 ? (
               <div className="py-16 text-center">
                 <Users className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-semibold">No registrations yet</p>
@@ -135,7 +128,6 @@ const AdminRegistrations = () => {
         </main>
       </div>
 
-      {/* Detail Dialog */}
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>

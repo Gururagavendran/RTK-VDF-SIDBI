@@ -9,12 +9,12 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { getApplications, type Application } from "@/lib/applicationStore";
-import { getRegistrations, type Registration } from "@/lib/registrationStore";
-import { useToast } from "@/hooks/use-toast";
+import { useGetApplicationsQuery, useGetMeetingsQuery } from "@/store/api";
 import { getSession } from "@/lib/authStore";
+import { useToast } from "@/hooks/use-toast";
 import { Eye, FileText, Clock, CheckCircle2, XCircle, Shield, ArrowUpDown, Calendar, Users, Share2, Printer, Download, Send } from "lucide-react";
-import { getAllMeetings, type CommitteeMeeting as MeetingRecord } from "@/lib/meetingStore";
+import type { Application } from "@/lib/applicationStore";
+import type { CommitteeMeeting as MeetingRecord } from "@/lib/meetingStore";
 import ConsentsRequiredSection from "@/components/dashboard/ConsentsRequiredSection";
 
 const roleLabels: Record<string, string> = {
@@ -33,33 +33,28 @@ const statusLabelMap: Record<string, string> = {
 const statusLabel = (s: string) => statusLabelMap[s] || s.replace(/_/g, " ").toUpperCase();
 
 const workflowStepLabelMap: Record<string, string> = {
-  // Prelim
   prelim_submitted: "Prelim Appl. Submitted for Review",
   prelim_review: "Prelim Appl. Under Review",
   prelim_revision: "Prelim Appl. Reverted Back to Applicant",
   prelim_rejected: "Prelim Appl. Rejected",
-  // Detailed
   detailed_form_open: "Detailed Appl. Form Pending from Applicant",
   detailed_form: "Detailed Appl. Form Pending from Applicant",
   detailed_revision: "Detailed Appl. Reverted Back to Applicant",
   detailed_maker_review: "Detailed Appl. Under Maker Review",
   detailed_checker_review: "Detailed Appl. Under Checker Review",
   detailed_rejected: "Detailed Appl. Rejected",
-  // IC-VD
   icvd_maker_review: "IC-VD Note Under Maker Preparation",
   icvd_note_preparation: "IC-VD Note Under Maker Preparation",
   icvd_checker_review: "IC-VD Note Under Checker Review",
   icvd_convenor_scheduling: "IC-VD Meeting Being Scheduled by Convenor",
   icvd_committee_review: "IC-VD Committee Review in Progress",
   icvd_referred: "IC-VD Referred to CCIC-CGM",
-  // CCIC-CGM
   ccic_maker_refine: "CCIC-CGM Note Under Maker Preparation",
   ccic_note_preparation: "CCIC-CGM Note Under Maker Preparation",
   ccic_checker_review: "CCIC-CGM Note Under Checker Review",
   ccic_convenor_scheduling: "CCIC-CGM Meeting Being Scheduled by Convenor",
   ccic_committee_review: "CCIC-CGM Committee Review in Progress",
   ccic_referred: "CCIC-CGM Referred to Final Approval",
-  // Final
   final_approval: "Pending Final Approval by Approving Authority",
   final_rejected: "Rejected at Final Approval Stage",
   sanctioned: "Sanctioned",
@@ -73,30 +68,21 @@ const SidbiDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const session = getSession();
-  const [apps, setApps] = useState<Application[]>([]);
   const [statFilter, setStatFilter] = useState<StatFilter>("all");
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
-  const [scheduledMeetings, setScheduledMeetings] = useState<MeetingRecord[]>([]);
+
+  const { data: apps = [], isLoading } = useGetApplicationsQuery(
+    session?.sidbiRole ? { role: session.sidbiRole } : undefined,
+    { skip: !session || session.userType !== "sidbi" }
+  );
+
+  const showMeetings = session?.sidbiRole === "convenor" || session?.sidbiRole === "committee_member";
+  const { data: scheduledMeetings = [] } = useGetMeetingsQuery(undefined, { skip: !showMeetings });
 
   useEffect(() => {
     if (!session || session.userType !== "sidbi") { navigate("/login"); return; }
-    const allApps = getApplications();
-    // Convenor only sees applications forwarded by checker for IC-VD
-    if (session.sidbiRole === "convenor") {
-      const icvdSteps = ["icvd_maker_review", "icvd_checker_review", "icvd_convenor_scheduling", "icvd_committee_review", "icvd_referred"];
-      const ccicSteps = ["ccic_maker_refine", "ccic_checker_review", "ccic_convenor_scheduling", "ccic_committee_review"];
-      setApps(allApps.filter(a => icvdSteps.includes(a.workflowStep ?? "") || ccicSteps.includes(a.workflowStep ?? "")));
-    } else if (session.sidbiRole === "checker") {
-      const icvdRelatedSteps = ["detailed_checker_review", "icvd_maker_review", "icvd_checker_review", "icvd_convenor_scheduling", "icvd_committee_review", "icvd_referred"];
-      setApps(allApps.filter(a => a.stage === "icvd" || icvdRelatedSteps.includes(a.workflowStep ?? "")));
-    } else {
-      setApps(allApps);
-    }
-    if (session.sidbiRole === "convenor" || session.sidbiRole === "committee_member") {
-      setScheduledMeetings(getAllMeetings());
-    }
   }, []);
 
   const roleName = roleLabels[session?.sidbiRole ?? "maker"] ?? "Maker";
@@ -106,19 +92,15 @@ const SidbiDashboard = () => {
 
   const filteredApps = useMemo(() => {
     let result = [...apps];
-
     if (statFilter === "pending") result = result.filter(a => a.status === "submitted" || a.status === "pending_review");
     else if (statFilter === "approved") result = result.filter(a => a.status === "approved");
     else if (statFilter === "rejected") result = result.filter(a => a.status === "rejected");
-
     if (stageFilter !== "all") result = result.filter(a => a.stage === stageFilter);
     if (statusFilter !== "all") result = result.filter(a => a.status === statusFilter);
-
     result.sort((a, b) => {
       const diff = new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
       return sortOrder === "desc" ? diff : -diff;
     });
-
     return result;
   }, [apps, statFilter, stageFilter, statusFilter, sortOrder]);
 
@@ -176,7 +158,6 @@ const SidbiDashboard = () => {
             )}
           </div>
 
-          {/* Clickable Stat cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {statCards.map(({ label, value, icon: Icon, className, filter }) => (
               <div key={label}
@@ -192,7 +173,6 @@ const SidbiDashboard = () => {
             ))}
           </div>
 
-          {/* Table - hidden for committee members */}
           {session?.sidbiRole !== "committee_member" && (
           <div className="bg-card border border-border">
             <div className="gov-section-header bg-muted px-6 py-3 border-b border-border flex items-center justify-between">
@@ -205,7 +185,9 @@ const SidbiDashboard = () => {
               </Button>
             </div>
 
-            {filteredApps.length === 0 ? (
+            {isLoading ? (
+              <div className="py-16 text-center"><p className="text-muted-foreground">Loading…</p></div>
+            ) : filteredApps.length === 0 ? (
               <div className="py-16 text-center">
                 <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-foreground font-semibold">{apps.length === 0 ? "No applications submitted yet" : "No matching applications"}</p>
@@ -292,7 +274,6 @@ const SidbiDashboard = () => {
           </div>
           )}
 
-          {/* Meetings Scheduled - Convenor & Committee Member */}
           {(session?.sidbiRole === "convenor" || session?.sidbiRole === "committee_member") && (
             <div id="meetings-scheduled-section" className="bg-card border border-border">
               <div className="gov-section-header bg-muted px-6 py-3 border-b border-border">
@@ -344,7 +325,6 @@ const SidbiDashboard = () => {
             </div>
           )}
 
-          {/* Consents Received - Convenor only */}
           {session?.sidbiRole === "convenor" && (
             <div className="bg-card border border-border">
               <div className="gov-section-header bg-muted px-6 py-3 border-b border-border">
@@ -417,7 +397,6 @@ const SidbiDashboard = () => {
             </div>
           )}
 
-          {/* Consents Required - Committee Member only */}
           {session?.sidbiRole === "committee_member" && (
             <ConsentsRequiredSection meetings={scheduledMeetings} />
           )}

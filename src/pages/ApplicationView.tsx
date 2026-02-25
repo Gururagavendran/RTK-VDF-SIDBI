@@ -1,10 +1,7 @@
-import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { getApplicationById, type Application } from "@/lib/applicationStore";
+import { useGetApplicationByIdQuery } from "@/store/api";
 import { getSession } from "@/lib/authStore";
-import { MessageSquare } from "lucide-react";
 import GovStatusBadge from "@/components/GovStatusBadge";
 import DetailedDataView from "@/components/detailed-app/DetailedDataView";
 import AppLayout from "@/components/layout/AppLayout";
@@ -21,12 +18,19 @@ const ApplicationView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const session = getSession();
-  const [app, setApp] = useState<Application | null>(null);
+  const { data: app, isLoading } = useGetApplicationByIdQuery(id!, { skip: !id || !session });
 
-  useEffect(() => {
-    if (!session) { navigate("/login"); return; }
-    if (id) setApp(getApplicationById(id));
-  }, [id]);
+  if (!session) { navigate("/login"); return null; }
+
+  if (isLoading) {
+    return (
+      <AppLayout title="SIDBI — Applicant Portal" subtitle="Application View" backTo="/applicant/dashboard" backLabel="Back to Dashboard">
+        <div className="flex-1 flex items-center justify-center py-20">
+          <p className="text-muted-foreground">Loading application…</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!app) {
     return <main className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Application not found.</p></main>;
@@ -48,7 +52,6 @@ const ApplicationView = () => {
       maxWidth="max-w-5xl"
     >
       <div className="mx-auto max-w-5xl space-y-6">
-        {/* Status bar */}
         <div className="bg-card border border-border p-4 flex items-center justify-between">
           <span className="text-sm font-bold text-foreground">Application ID: <span className="font-mono">{app.id.slice(0, 8)}</span></span>
           <div className="flex items-center gap-2">
@@ -57,10 +60,8 @@ const ApplicationView = () => {
           </div>
         </div>
 
-        {/* Stage-wise Comments */}
         <StageComments auditTrail={app.auditTrail || []} stage={app.stage} />
 
-        {/* Prelim Data */}
         <div className="bg-card border border-border">
           <GovSectionHeader title="Preliminary Application" />
           <div className="p-6 space-y-0">
@@ -73,10 +74,8 @@ const ApplicationView = () => {
           </div>
         </div>
 
-        {/* Detailed Data */}
         {app.detailedData && <DetailedDataView data={app.detailedData} />}
 
-        {/* Update button */}
         {(app.status === "pending_review" || app.status === "reverted") && (
           <div className="flex justify-center">
             <Button onClick={() => navigate(app.workflowStep === "detailed_revision" ? `/detailed-application?appId=${app.id}` : `/prelim-application?edit=${app.id}`)}

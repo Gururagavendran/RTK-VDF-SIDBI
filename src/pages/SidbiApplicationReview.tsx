@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -7,8 +7,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  getApplicationById, applyWorkflowAction, type Application, type WorkflowStep, type WorkflowAction,
-} from "@/lib/applicationStore";
+  useGetApplicationByIdQuery,
+  useApplyWorkflowActionMutation,
+} from "@/store/api";
+import type { WorkflowAction } from "@/lib/applicationStore";
 import { MOCK_CONVENORS, MOCK_APPROVERS, simulateEmail } from "@/lib/meetingStore";
 import { getSession } from "@/lib/authStore";
 import { toast } from "@/hooks/use-toast";
@@ -45,7 +47,10 @@ const SidbiApplicationReview = () => {
   const backLabel = backUrl.includes("/meeting/") ? "Back to IC-VD Meeting" : "Back to Dashboard";
   const session = getSession();
   const sidbiRole = session?.sidbiRole ?? "maker";
-  const [app, setApp] = useState<Application | null>(null);
+
+  const { data: app, isLoading } = useGetApplicationByIdQuery(id!, { skip: !id || !session || session.userType !== "sidbi" });
+  const [applyAction, { isLoading: isApplying }] = useApplyWorkflowActionMutation();
+
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState(false);
   const [selectedChecker, setSelectedChecker] = useState("");
@@ -54,14 +59,22 @@ const SidbiApplicationReview = () => {
   const [selectedConvenor, setSelectedConvenor] = useState("");
   const [selectedApprover, setSelectedApprover] = useState("");
 
-  useEffect(() => {
-    if (!session || session.userType !== "sidbi") { navigate("/login"); return; }
-    if (id) {
-      const found = getApplicationById(id);
-      setApp(found);
-      if (found?.comments?.["_global"]?.comment) setComment(found.comments["_global"].comment);
+  // Set initial comment from app data
+  useState(() => {
+    if (app?.comments?.["_global"]?.comment && !comment) {
+      setComment(app.comments["_global"].comment);
     }
-  }, [id]);
+  });
+
+  if (isLoading) {
+    return (
+      <AppLayout title="SIDBI — Application Review" subtitle={`Role: ${sidbiRole}`} backTo={backUrl} backLabel={backLabel}>
+        <div className="flex-1 flex items-center justify-center py-20">
+          <p className="text-muted-foreground">Loading application…</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (!app) {
     return <main className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Application not found.</p></main>;
@@ -97,24 +110,24 @@ const SidbiApplicationReview = () => {
     return true;
   };
 
-  const doAction = (action: WorkflowAction, toastTitle: string, extra?: {
+  const doAction = async (action: WorkflowAction, toastTitle: string, extra?: {
     assignedChecker?: string; assignedConvenor?: string; assignedApprover?: string;
     recommendedOutcome?: "rejection" | "pursual";
   }) => {
     if (!id || !validateComment()) return;
-    const result = applyWorkflowAction(id, action, {
-      role: sidbiRole,
-      id: session?.email ?? "unknown",
-    }, {
+    const result = await applyAction({
+      id,
+      action,
+      actor: { role: sidbiRole, id: session?.email ?? "unknown" },
       comment,
       ...extra,
-    });
+    }).unwrap();
+
     if (!result.success) {
       toast({ title: "Error", description: result.error, variant: "destructive" });
       return;
     }
 
-    // Simulate email based on action
     const emailRecipients: string[] = [];
     let emailSubject = toastTitle;
     if (action === "icvd_maker_forward") emailRecipients.push("checker@sidbi.com");
@@ -142,21 +155,19 @@ const SidbiApplicationReview = () => {
     const step = workflowStep;
     const role = sidbiRole;
 
-    // ── Prelim ──
     if ((step === "prelim_review" || step === "prelim_submitted") && (role === "maker" || role === "checker")) {
       return (
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" className="border-warning text-warning hover:bg-warning/10 font-bold uppercase tracking-wider text-xs"
+          <Button variant="outline" className="border-warning text-warning hover:bg-warning/10 font-bold uppercase tracking-wider text-xs" disabled={isApplying}
             onClick={() => doAction("revert_prelim", "Reverted to Applicant")}>Revert</Button>
-          <Button variant="destructive" className="font-bold uppercase tracking-wider text-xs"
+          <Button variant="destructive" className="font-bold uppercase tracking-wider text-xs" disabled={isApplying}
             onClick={() => doAction("reject_prelim", "Rejected")}>Reject</Button>
-          <Button className="font-bold uppercase tracking-wider text-xs bg-success hover:bg-success/90"
+          <Button className="font-bold uppercase tracking-wider text-xs bg-success hover:bg-success/90" disabled={isApplying}
             onClick={() => doAction("approve_prelim", "Approved — Detailed form open")}>Approve</Button>
         </div>
       );
     }
 
-    // ── Detailed Maker ──
     if (step === "detailed_maker_review" && role === "maker") {
       const assigneeList = assignTo === "checker" ? MOCK_CHECKERS : MOCK_MAKERS;
       const selectedAssignee = assignTo === "checker" ? selectedChecker : selectedMaker;
@@ -198,27 +209,20 @@ const SidbiApplicationReview = () => {
               <li>Cashflow Projections</li>
               <li>MIS</li>
             </ul>
-            <input
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png"
-              className="block w-full text-sm text-foreground file:mr-3 file:py-1.5 file:px-3 file:border file:border-border file:rounded file:bg-muted file:text-muted-foreground file:text-xs file:font-semibold file:uppercase file:tracking-wider hover:file:bg-accent cursor-pointer"
-            />
+            <input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png"
+              className="block w-full text-sm text-foreground file:mr-3 file:py-1.5 file:px-3 file:border file:border-border file:rounded file:bg-muted file:text-muted-foreground file:text-xs file:font-semibold file:uppercase file:tracking-wider hover:file:bg-accent cursor-pointer" />
             <p className="text-xs text-muted-foreground">PDF, Word, Excel, CSV, or Image (max 25MB each)</p>
           </div>
           <div className="space-y-2 mb-4">
             <Label className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">Upload IC-VD Note</Label>
-            <input
-              type="file"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png"
-              className="block w-full text-sm text-foreground file:mr-3 file:py-1.5 file:px-3 file:border file:border-border file:rounded file:bg-muted file:text-muted-foreground file:text-xs file:font-semibold file:uppercase file:tracking-wider hover:file:bg-accent cursor-pointer"
-            />
+            <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.jpg,.jpeg,.png"
+              className="block w-full text-sm text-foreground file:mr-3 file:py-1.5 file:px-3 file:border file:border-border file:rounded file:bg-muted file:text-muted-foreground file:text-xs file:font-semibold file:uppercase file:tracking-wider hover:file:bg-accent cursor-pointer" />
             <p className="text-xs text-muted-foreground">PDF, Word, Excel, CSV, or Image (max 25MB)</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="border-warning text-warning hover:bg-warning/10 font-bold uppercase tracking-wider text-xs"
+            <Button variant="outline" className="border-warning text-warning hover:bg-warning/10 font-bold uppercase tracking-wider text-xs" disabled={isApplying}
               onClick={() => doAction("revert_detailed", "Reverted to Applicant")}>Revert</Button>
-            <Button className="font-bold uppercase tracking-wider text-xs"
+            <Button className="font-bold uppercase tracking-wider text-xs" disabled={isApplying}
               onClick={() => {
                 if (!selectedAssignee) { toast({ title: `${assignTo === "checker" ? "Checker" : "Maker"} Required`, description: `Please select a ${assignTo} before forwarding.`, variant: "destructive" }); return; }
                 doAction("recommend_pursual", `Forwarded to ${assignTo === "checker" ? "Checker" : "Maker"}`, { assignedChecker: selectedAssignee });
@@ -228,7 +232,6 @@ const SidbiApplicationReview = () => {
       );
     }
 
-    // ── Detailed Checker ──
     if (step === "detailed_checker_review" && role === "checker") {
       return (
         <>
@@ -239,16 +242,15 @@ const SidbiApplicationReview = () => {
             </Button>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button variant="destructive" className="font-bold uppercase tracking-wider text-xs"
+            <Button variant="destructive" className="font-bold uppercase tracking-wider text-xs" disabled={isApplying}
               onClick={() => doAction("reject_final", "Rejected")}>Reject</Button>
-            <Button className="font-bold uppercase tracking-wider text-xs"
+            <Button className="font-bold uppercase tracking-wider text-xs" disabled={isApplying}
               onClick={() => doAction("recommend_icvd", "Forwarded to IC-VD")}>Forward IC-VD Note to Convenor</Button>
           </div>
         </>
       );
     }
 
-    // ── ICVD Maker ──
     if ((step === "icvd_maker_review" || step === "icvd_note_preparation") && role === "maker") {
       return (
         <div className="text-center space-y-2">
@@ -256,22 +258,19 @@ const SidbiApplicationReview = () => {
             Download IC-VD Note
           </Button>
           <p className="text-xs text-muted-foreground">Review and forward the IC-VD Note to Checker.</p>
-          <Button onClick={() => doAction("icvd_maker_forward", "IC-VD Note forwarded to Checker")} className="w-full font-bold uppercase tracking-wider text-xs">
+          <Button onClick={() => doAction("icvd_maker_forward", "IC-VD Note forwarded to Checker")} className="w-full font-bold uppercase tracking-wider text-xs" disabled={isApplying}>
             Forward to Checker
           </Button>
         </div>
       );
     }
 
-    // ── ICVD Checker ──
     if (step === "icvd_checker_review" && role === "checker") {
       return (
         <>
           <div className="space-y-2 mb-4">
             <Label className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">IC-VD Note</Label>
-            <Button variant="outline" className="w-full font-bold uppercase tracking-wider text-xs" onClick={() => toast({ title: "Download Started", description: "IC-VD Note download initiated." })}>
-              Download IC-VD Note
-            </Button>
+            <Button variant="outline" className="w-full font-bold uppercase tracking-wider text-xs" onClick={() => toast({ title: "Download Started" })}>Download IC-VD Note</Button>
           </div>
           <div className="space-y-2 mb-4">
             <Label className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">Assign Convenor</Label>
@@ -282,7 +281,7 @@ const SidbiApplicationReview = () => {
               </SelectContent>
             </Select>
           </div>
-          <Button className="w-full font-bold uppercase tracking-wider text-xs"
+          <Button className="w-full font-bold uppercase tracking-wider text-xs" disabled={isApplying}
             onClick={() => {
               if (!selectedConvenor) { toast({ title: "Convenor Required", variant: "destructive" }); return; }
               doAction("icvd_checker_assign_convenor", "Convenor Assigned — Sent for IC-VD Scheduling", { assignedConvenor: selectedConvenor });
@@ -291,33 +290,25 @@ const SidbiApplicationReview = () => {
       );
     }
 
-    // ── CCIC Maker ──
     if ((step === "ccic_maker_refine" || step === "ccic_note_preparation") && role === "maker") {
       return (
         <div className="text-center space-y-2">
-          <Button variant="outline" className="w-full font-bold uppercase tracking-wider text-xs" onClick={() => toast({ title: "Download Started", description: "IC-VD Note download initiated." })}>
-            Download IC-VD Note
-          </Button>
+          <Button variant="outline" className="w-full font-bold uppercase tracking-wider text-xs" onClick={() => toast({ title: "Download Started" })}>Download IC-VD Note</Button>
           <p className="text-xs text-muted-foreground">Download, refine, and upload the CCIC-CGM Note, then forward to Checker.</p>
-          <Button variant="outline" className="w-full font-bold uppercase tracking-wider text-xs mb-2">
-            Download Note
-          </Button>
-          <Button onClick={() => doAction("ccic_maker_upload", "CCIC-CGM Note forwarded to Checker")} className="w-full font-bold uppercase tracking-wider text-xs">
+          <Button variant="outline" className="w-full font-bold uppercase tracking-wider text-xs mb-2">Download Note</Button>
+          <Button onClick={() => doAction("ccic_maker_upload", "CCIC-CGM Note forwarded to Checker")} className="w-full font-bold uppercase tracking-wider text-xs" disabled={isApplying}>
             Upload & Forward to Checker
           </Button>
         </div>
       );
     }
 
-    // ── CCIC Checker ──
     if (step === "ccic_checker_review" && role === "checker") {
       return (
         <>
           <div className="space-y-2 mb-4">
             <Label className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">IC-VD Note</Label>
-            <Button variant="outline" className="w-full font-bold uppercase tracking-wider text-xs" onClick={() => toast({ title: "Download Started", description: "IC-VD Note download initiated." })}>
-              Download IC-VD Note
-            </Button>
+            <Button variant="outline" className="w-full font-bold uppercase tracking-wider text-xs" onClick={() => toast({ title: "Download Started" })}>Download IC-VD Note</Button>
           </div>
           <div className="space-y-2 mb-4">
             <Label className="font-semibold text-xs uppercase tracking-wide text-muted-foreground">Assign Convenor</Label>
@@ -337,7 +328,7 @@ const SidbiApplicationReview = () => {
               </SelectContent>
             </Select>
           </div>
-          <Button className="w-full font-bold uppercase tracking-wider text-xs"
+          <Button className="w-full font-bold uppercase tracking-wider text-xs" disabled={isApplying}
             onClick={() => {
               if (!selectedConvenor) { toast({ title: "Convenor Required", variant: "destructive" }); return; }
               doAction("ccic_checker_assign_convenor", "Convenor Assigned — Sent for CCIC-CGM Scheduling", {
@@ -349,19 +340,16 @@ const SidbiApplicationReview = () => {
       );
     }
 
-    // ── Final Approval ──
     if (step === "final_approval" && role === "approving_authority") {
       return (
         <div className="space-y-2">
           <div className="mb-4">
             <Label className="font-semibold text-xs uppercase tracking-wide text-muted-foreground mb-2 block">IC-VD Note</Label>
-            <Button variant="outline" className="w-full font-bold uppercase tracking-wider text-xs" onClick={() => toast({ title: "Download Started", description: "IC-VD Note download initiated." })}>
-              Download IC-VD Note
-            </Button>
+            <Button variant="outline" className="w-full font-bold uppercase tracking-wider text-xs" onClick={() => toast({ title: "Download Started" })}>Download IC-VD Note</Button>
           </div>
-          <Button variant="destructive" className="w-full font-bold uppercase tracking-wider text-xs"
+          <Button variant="destructive" className="w-full font-bold uppercase tracking-wider text-xs" disabled={isApplying}
             onClick={() => doAction("reject_sanction", "Sanction Rejected")}>Reject Sanction</Button>
-          <Button className="w-full font-bold uppercase tracking-wider text-xs bg-success hover:bg-success/90"
+          <Button className="w-full font-bold uppercase tracking-wider text-xs bg-success hover:bg-success/90" disabled={isApplying}
             onClick={() => doAction("approve_sanction", "Application Sanctioned")}>Approve Sanction</Button>
         </div>
       );
@@ -384,9 +372,7 @@ const SidbiApplicationReview = () => {
     >
       <div className="mx-auto max-w-6xl">
         <div className="flex gap-6">
-          {/* Main content */}
           <div className="flex-1 space-y-6">
-            {/* Status Banner */}
             <div className="bg-card border border-border p-4 flex items-center justify-between">
               <span className="text-sm font-bold text-foreground">Application ID: <span className="font-mono">{app.id.slice(0, 8)}</span></span>
               <div className="flex items-center gap-2">
@@ -394,7 +380,6 @@ const SidbiApplicationReview = () => {
               </div>
             </div>
 
-            {/* Application Details */}
             <div className="bg-card border border-border">
               <GovSectionHeader title="Application Details" />
               <div className="p-6 space-y-2 text-sm">
@@ -412,7 +397,6 @@ const SidbiApplicationReview = () => {
               </div>
             </div>
 
-            {/* Preliminary Data */}
             <div className="bg-card border border-border">
               <GovSectionHeader title="Preliminary Application Data" />
               <div className="p-6 space-y-0">
@@ -425,14 +409,10 @@ const SidbiApplicationReview = () => {
               </div>
             </div>
 
-            {/* Detailed Data */}
             {app.detailedData && <DetailedDataView data={app.detailedData} />}
-
-            {/* Stage-wise Comments */}
             <StageComments auditTrail={app.auditTrail || []} stage={app.stage} />
           </div>
 
-          {/* Right Sticky Panel — Comment & Actions */}
           {hasActions && (
             <aside className="w-80 shrink-0">
               <div className="sticky top-4 space-y-4">
@@ -461,7 +441,6 @@ const SidbiApplicationReview = () => {
           )}
         </div>
 
-        {/* No-action fallback */}
         {!hasActions && workflowStep !== "completed" && workflowStep !== "sanctioned" && (
           <div className="mt-6 bg-card border border-border p-6 text-center">
             <p className="text-muted-foreground text-sm">No actions available for your role at this workflow step.</p>

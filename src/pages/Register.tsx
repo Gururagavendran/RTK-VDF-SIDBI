@@ -1,4 +1,4 @@
-import { addRegistration } from "@/lib/registrationStore";
+import { useAddRegistrationMutation } from "@/store/api";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -43,6 +43,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showRetypePassword, setShowRetypePassword] = useState(false);
+  const [addRegistration, { isLoading }] = useAddRegistrationMutation();
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -53,8 +54,8 @@ const Register = () => {
     },
   });
 
-  function onSubmit(data: RegisterFormValues) {
-    addRegistration({
+  async function onSubmit(data: RegisterFormValues) {
+    await addRegistration({
       email: data.email, nameOfApplicant: data.nameOfApplicant,
       registeredOffice: data.registeredOffice, locationOfFacilities: data.locationOfFacilities,
       dateOfIncorporation: data.dateOfIncorporation.toISOString(),
@@ -84,7 +85,6 @@ const Register = () => {
           </div>
 
           <div className="bg-card border border-border">
-            {/* Section: Account Credentials */}
             <div className="gov-section-header bg-muted px-6 py-3 border-b border-border">
               <p className="text-xs font-bold text-foreground uppercase tracking-widest">Account Credentials</p>
             </div>
@@ -131,7 +131,6 @@ const Register = () => {
                   )} />
                 </div>
 
-                {/* Section: Business Information */}
                 <div className="gov-section-header bg-muted px-6 py-3 border-y border-border">
                   <p className="text-xs font-bold text-foreground uppercase tracking-widest">Business Information</p>
                 </div>
@@ -192,7 +191,6 @@ const Register = () => {
                   )} />
                 </div>
 
-                {/* Section: Compliance */}
                 <div className="gov-section-header bg-muted px-6 py-3 border-y border-border">
                   <p className="text-xs font-bold text-foreground uppercase tracking-widest">Compliance & Classification</p>
                 </div>
@@ -227,8 +225,8 @@ const Register = () => {
                 </div>
 
                 <div className="px-6 pb-6">
-                  <Button type="submit" size="lg" className="w-full h-11 font-bold uppercase tracking-wider">
-                    Submit Registration
+                  <Button type="submit" size="lg" className="w-full h-11 font-bold uppercase tracking-wider" disabled={isLoading}>
+                    {isLoading ? "Submitting…" : "Submit Registration"}
                   </Button>
                 </div>
               </form>

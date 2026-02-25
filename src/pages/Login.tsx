@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { setSession, type UserType, type SidbiRole } from "@/lib/authStore";
+import { useLoginMutation, useLoginAsDemoMutation } from "@/store/api";
 import PublicLayout from "@/components/layout/PublicLayout";
 
 const loginSchema = z.object({
@@ -31,23 +32,42 @@ const demoAccounts: {label: string;userType: UserType;email: string;sidbiRole?: 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const [login, { isLoading: isLoginLoading }] = useLoginMutation();
+  const [loginAsDemo, { isLoading: isDemoLoading }] = useLoginAsDemoMutation();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" }
   });
 
-  function onSubmit(data: LoginFormValues) {
-    console.log("Login submitted:", data.email);
+  async function onSubmit(data: LoginFormValues) {
+    try {
+      const session = await login({ email: data.email, password: data.password }).unwrap();
+      setSession(session);
+      switch (session.userType) {
+        case "applicant": navigate("/applicant/dashboard"); break;
+        case "sidbi": navigate("/sidbi/dashboard"); break;
+        case "admin": navigate("/admin/registrations"); break;
+      }
+    } catch {
+      form.setError("email", { message: "Invalid email or password" });
+    }
   }
 
-  const loginAsDemo = (account: (typeof demoAccounts)[number]) => {
-    setSession({ email: account.email, userType: account.userType, sidbiRole: account.sidbiRole });
-    switch (account.userType) {
-      case "applicant": navigate("/applicant/dashboard"); break;
-      case "sidbi": navigate("/sidbi/dashboard"); break;
-      case "admin": navigate("/admin/registrations"); break;
-    }
+  const handleDemoLogin = async (account: (typeof demoAccounts)[number]) => {
+    try {
+      const session = await loginAsDemo({
+        email: account.email,
+        userType: account.userType,
+        sidbiRole: account.sidbiRole,
+      }).unwrap();
+      setSession(session);
+      switch (account.userType) {
+        case "applicant": navigate("/applicant/dashboard"); break;
+        case "sidbi": navigate("/sidbi/dashboard"); break;
+        case "admin": navigate("/admin/registrations"); break;
+      }
+    } catch {}
   };
 
   return (
@@ -89,8 +109,8 @@ const Login = () => {
                   </FormItem>
                 } />
 
-                <Button type="submit" size="lg" className="w-full h-11 font-bold uppercase tracking-wider">
-                  Sign In
+                <Button type="submit" size="lg" className="w-full h-11 font-bold uppercase tracking-wider" disabled={isLoginLoading}>
+                  {isLoginLoading ? "Signing In…" : "Sign In"}
                 </Button>
               </form>
             </Form>
@@ -106,7 +126,8 @@ const Login = () => {
               {demoAccounts.map((acc) =>
                 <Button key={acc.email} variant="outline" size="sm"
                   className="h-auto py-2 px-3 text-xs whitespace-normal text-center leading-snug border-border hover:border-secondary hover:text-secondary"
-                  onClick={() => loginAsDemo(acc)}>
+                  onClick={() => handleDemoLogin(acc)}
+                  disabled={isDemoLoading}>
                   {acc.label}
                 </Button>
               )}
