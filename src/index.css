@@ -1,0 +1,150 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Government Institutional Design System — All colors HSL */
+
+@layer base {
+  :root {
+    /* Primary: Deep Navy Blue #0B3C5D */
+    --primary: 205 80% 21%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Teal / Government Cyan #008C8C */
+    --secondary: 180 100% 27%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Accent: Saffron / Subtle Orange #F5A623 */
+    --accent: 38 90% 55%;
+    --accent-foreground: 0 0% 10%;
+
+    /* Background: Light Grey #F4F6F8 */
+    --background: 210 20% 97%;
+    --foreground: 0 0% 13%;
+
+    /* Card: White */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+
+    /* Muted */
+    --muted: 210 14% 93%;
+    --muted-foreground: 215 14% 40%;
+
+    /* Status Colors */
+    --destructive: 0 100% 27%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 45 96% 56%;
+    --warning-foreground: 0 0% 10%;
+
+    /* Approved: Dark Green #2E7D32 */
+    --success: 123 46% 34%;
+    --success-foreground: 0 0% 100%;
+
+    /* Draft: Grey #757575 */
+    --draft: 0 0% 46%;
+    --draft-foreground: 0 0% 100%;
+
+    /* Under Review: Blue */
+    --info: 207 90% 54%;
+    --info-foreground: 0 0% 100%;
+
+    /* Brand tokens */
+    --brand: 205 80% 21%;
+    --brand-dark: 205 80% 15%;
+
+    --border: 214 18% 84%;
+    --input: 214 18% 84%;
+    --ring: 205 80% 21%;
+
+    --radius: 0.25rem;
+
+    --sidebar-background: 205 80% 15%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 180 100% 27%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 205 70% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 205 60% 25%;
+    --sidebar-ring: 180 100% 27%;
+  }
+
+  .dark {
+    --primary: 205 80% 21%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 180 100% 27%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 38 90% 55%;
+    --accent-foreground: 0 0% 10%;
+    --background: 210 20% 10%;
+    --foreground: 210 20% 92%;
+    --card: 210 20% 14%;
+    --card-foreground: 210 20% 92%;
+    --popover: 210 20% 14%;
+    --popover-foreground: 210 20% 92%;
+    --muted: 210 14% 20%;
+    --muted-foreground: 215 14% 60%;
+    --destructive: 0 100% 27%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 45 96% 56%;
+    --warning-foreground: 0 0% 10%;
+    --border: 210 14% 25%;
+    --input: 210 14% 25%;
+    --ring: 205 80% 21%;
+    --sidebar-background: 210 20% 8%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 180 100% 27%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 20% 15%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-border: 210 14% 20%;
+    --sidebar-ring: 180 100% 27%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Noto Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Government-style section headers */
+  .gov-section-header {
+    @apply border-l-4 border-primary pl-4 py-2;
+  }
+
+  /* Rectangular badges (no rounded-full) */
+  .gov-badge {
+    @apply inline-flex items-center px-2.5 py-1 text-xs font-bold uppercase tracking-wider border;
+  }
+
+  /* Form field with mandatory star */
+  .gov-required::after {
+    content: ' *';
+    @apply text-destructive;
+  }
+
+  /* Table with borders */
+  .gov-table {
+    @apply w-full text-sm border-collapse;
+  }
+  .gov-table th,
+  .gov-table td {
+    @apply border border-border px-3 py-2 text-left;
+  }
+  .gov-table th {
+    @apply bg-muted font-semibold text-foreground uppercase text-xs tracking-wider;
+  }
+}

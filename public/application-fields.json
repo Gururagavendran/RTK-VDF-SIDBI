@@ -1,0 +1,264 @@
+{
+  "pages": {
+    "registration": {
+      "route": "/register",
+      "title": "Applicant Registration",
+      "fields": [
+        { "key": "name", "label": "Name of Applicant", "type": "text" },
+        { "key": "email", "label": "Email ID", "type": "email" },
+        { "key": "password", "label": "Password", "type": "password" },
+        { "key": "retypePassword", "label": "Retype Password", "type": "password" },
+        { "key": "registeredOffice", "label": "Registered Office", "type": "text" },
+        { "key": "facilities", "label": "Location of Existing Facilities", "type": "text" },
+        { "key": "incorporationDate", "label": "Date of Incorporation", "type": "date" },
+        { "key": "commencementDate", "label": "Date of Commencement of Business", "type": "date" },
+        { "key": "pan", "label": "PAN No.", "type": "text (regex validated)" },
+        { "key": "gst", "label": "GST No.", "type": "text (regex validated)" },
+        { "key": "msmeStatus", "label": "MSME Status", "type": "dropdown (Micro/Small/Medium)" }
+      ]
+    },
+    "login": {
+      "route": "/login",
+      "title": "Applicant Login",
+      "fields": [
+        { "key": "email", "label": "Email ID", "type": "email" },
+        { "key": "password", "label": "Password", "type": "password" }
+      ]
+    },
+    "prelimApplication": {
+      "route": "/prelim-application",
+      "title": "Preliminary Application — Eligibility Check",
+      "modes": ["fill", "edit (?edit=ID)", "view (?view=ID)"],
+      "sections": {
+        "aifDetails": {
+          "title": "AIF / Investment Manager Details",
+          "fields": [
+            { "key": "aifName", "label": "Name of the AIF / IM", "type": "text" },
+            { "key": "amountInvestedPast", "label": "Amount invested in the past (₹ Cr)", "type": "numeric" },
+            { "key": "investmentAsOnDate", "label": "Investment as on date (₹ Cr)", "type": "numeric" },
+            { "key": "additionalInvestment", "label": "Additional investment being considered (₹ Cr)", "type": "numeric" }
+          ]
+        },
+        "eligibilityParameters": {
+          "title": "Eligibility Check",
+          "fields": [
+            { "sno": "1", "key": "entityType", "label": "Entity type", "type": "boolean toggle" },
+            { "sno": "2", "key": "vintage", "label": "Vintage", "type": "boolean toggle" },
+            { "sno": "3", "key": "recentEquity", "label": "Recent AIF/FVCI equity (≥1 round within 15 months)", "type": "boolean toggle" },
+            { "sno": "4", "key": "aggregateEquity", "label": "Aggregate non-exited equity (≥₹10 Cr)", "type": "boolean toggle" },
+            { "sno": "5", "key": "operatingIncome", "label": "Operating income (≥₹10 Cr last 2 FYs)", "type": "boolean toggle" },
+            { "sno": "6", "key": "revenueGrowth", "label": "Revenue growth trend (last 12 months)", "type": "boolean toggle" },
+            { "sno": "7", "key": "netWorth", "label": "Net worth ≥ proposed VD", "type": "boolean toggle" },
+            { "sno": "8", "key": "unitEconomics", "label": "Positive unit economics", "type": "boolean toggle" },
+            { "sno": "9", "key": "cashFlow", "label": "Cash flow projections (~25% cushion)", "type": "boolean toggle" },
+            { "sno": "10", "key": "existingSidbi", "label": "Existing SIDBI customer", "type": "boolean toggle" },
+            { "sno": "11", "key": "promoterCapital", "label": "Promoter capital infusion", "type": "boolean toggle" },
+            { "sno": "12A", "key": "derTotalDebt", "label": "DER (Total Debt) ≤ 2:1", "type": "boolean toggle" },
+            { "sno": "12B", "key": "derTermLoans", "label": "DER (Only Term Loans) ≤ 2:1", "type": "boolean toggle" },
+            { "sno": "12C", "key": "debtValuation", "label": "Debt/Valuation ≤ 10% of Enterprise Valuation", "type": "boolean toggle" },
+            { "sno": "13A", "key": "writtenOff", "label": "Not written-off or restructured (last 2 yrs)", "type": "boolean toggle" },
+            { "sno": "13B", "key": "stressSma", "label": "Not SMA/stressed (last 12 months)", "type": "boolean toggle" },
+            { "sno": "13C", "key": "regularWC", "label": "No regular WC limits (exceptions allowed)", "type": "boolean toggle" }
+          ]
+        }
+      }
+    },
+    "detailedApplication": {
+      "route": "/detailed-application?appId=ID",
+      "title": "Detailed Application",
+      "modes": ["fill", "edit (readOnly=false)", "view (readOnly=true)"],
+      "sections": {
+        "sectionA": {
+          "title": "Section A — Founders / Business",
+          "fields": [
+            { "key": "companyProfile", "label": "Company / Founders / Product / Team Profile", "type": "textarea (max 1000 words)", "required": true }
+          ]
+        },
+        "sectionB": {
+          "title": "Section B — Financial Position",
+          "subsections": {
+            "capitalTable": {
+              "title": "2. Capital Table (Fully Diluted Basis)",
+              "type": "dynamic table (add/remove rows)",
+              "columns": [
+                { "key": "shareholders", "label": "Shareholders (AIF/Family Office/Corporate/Strategic/Others)", "type": "text" },
+                { "key": "typeOfShare", "label": "Type of Share", "type": "text" },
+                { "key": "noOfShares", "label": "No. of Shares", "type": "numeric" },
+                { "key": "percentHolding", "label": "% of Holding", "type": "decimal" },
+                { "key": "amountInvested", "label": "Amount Invested (₹ Lakh)", "type": "decimal" }
+              ]
+            },
+            "financialPerformance": {
+              "title": "2.1 Financial / Operational Performance (₹ Crore)",
+              "type": "grid",
+              "rows": [
+                "Income / Revenue", "EBITDA", "Depreciation", "Interest", "PAT",
+                "EBITDA %", "PAT %", "Equity Cap", "Pref Cap", "Reserves",
+                "Networth", "Intangible assets", "Secured loans", "Unsecured loans"
+              ],
+              "columns": [
+                "FY (currentYear-4) Audited",
+                "FY (currentYear-3) Audited",
+                "FY (currentYear-2) Audited / Prov.",
+                "FY (currentYear-1) Proj",
+                "FY (currentYear) Proj",
+                "FY (currentYear+1) Proj"
+              ],
+              "note": "Columns auto-adjust based on current calendar year"
+            },
+            "revenueTrends": {
+              "title": "2.2 Revenue Trends (Main Revenue Streams)",
+              "type": "grid (single row)",
+              "columns": ["12th Month", "11th Month", "10th Month", "9th Month", "8th Month", "7th Month", "6th Month", "5th Month", "4th Month", "3rd Month", "2nd Month", "1st Month"]
+            },
+            "arrears": {
+              "title": "2.3 Arrears of Statutory Dues",
+              "fields": [{ "key": "arrears", "label": "Arrears of Statutory Dues", "type": "textarea", "required": true }]
+            },
+            "enterpriseValue": {
+              "title": "2.4 Enterprise Value and Basis of Valuation",
+              "fields": [{ "key": "enterpriseValue", "label": "Enterprise Value and Basis of Valuation", "type": "textarea", "required": true }]
+            },
+            "unitEconomics": {
+              "title": "2.5 Unit Economics",
+              "fields": [{ "key": "unitEconDesc", "label": "Description", "type": "textarea" }],
+              "grid": {
+                "type": "grid",
+                "rows": [
+                  "Net Revenue", "COGS", "GM", "GM%",
+                  "Logistic expenses", "GM1", "GM1%",
+                  "Marketing Cost", "GM2", "GM2%",
+                  "Employee Cost", "Admin/Infra Cost", "Indirect Expenses",
+                  "EBITDA", "EBITDA %"
+                ],
+                "columns": "Last 9 months dynamically generated (e.g. Jun-25, Jul-25, …, Feb-26)"
+              }
+            },
+            "cashBalance": {
+              "title": "2.6 Cash & Bank Balance",
+              "fields": [{ "key": "cashBalance", "label": "Cash & Bank Balance", "type": "textarea", "required": true }]
+            },
+            "cashRunway": {
+              "title": "2.7 Cash Runway",
+              "fields": [{ "key": "cashRunway", "label": "Cash Runway", "type": "textarea", "required": true }]
+            },
+            "fundingWithdrawn": {
+              "title": "2.8 Funding Commitments Withdrawn or Deferred",
+              "fields": [
+                { "key": "fundingWithdrawn", "label": "Any funding withdrawn/deferred?", "type": "boolean toggle" },
+                { "key": "fundingWithdrawnDetails", "label": "Details", "type": "textarea (shown if Yes)" }
+              ]
+            },
+            "facilitiesAvailed": {
+              "title": "2.9 Facilities Availed",
+              "fields": [
+                { "key": "facilitiesAvailed", "label": "Facilities availed?", "type": "boolean toggle" },
+                { "key": "facilitiesAvailedDetails", "label": "Details", "type": "textarea (shown if Yes)" }
+              ]
+            },
+            "facilitiesApplicant": {
+              "title": "2.9.1 Facilities Availed by Applicant",
+              "type": "dynamic table (add/remove rows)",
+              "columns": [
+                { "key": "institution", "label": "Institution", "type": "text" },
+                { "key": "facility", "label": "Facility", "type": "text" },
+                { "key": "dateOfSanction", "label": "Date of Sanction", "type": "date" },
+                { "key": "sanctionedAmount", "label": "Sanct. Amt (₹ Cr)", "type": "decimal" },
+                { "key": "outstanding", "label": "O/s (₹ Cr)", "type": "decimal" },
+                { "key": "roiPercent", "label": "RoI %", "type": "decimal" },
+                { "key": "security", "label": "Security", "type": "text" }
+              ]
+            },
+            "facilitiesAssociate": {
+              "title": "2.9.2 Facilities Availed by Associate Concerns",
+              "type": "dynamic table groups (add/remove concerns, each with rows)",
+              "concernFields": [{ "key": "name", "label": "Name of Concern", "type": "text" }],
+              "rowColumns": [
+                { "key": "institution", "label": "Institution", "type": "text" },
+                { "key": "facility", "label": "Facility", "type": "text" },
+                { "key": "dateOfSanction", "label": "Date of Sanction", "type": "date" },
+                { "key": "sanctionedAmount", "label": "Sanct. Amt (₹ Cr)", "type": "decimal" },
+                { "key": "outstanding", "label": "O/s (₹ Cr)", "type": "decimal" },
+                { "key": "roiPercent", "label": "RoI %", "type": "decimal" },
+                { "key": "security", "label": "Security", "type": "text" }
+              ]
+            }
+          }
+        },
+        "sectionC": {
+          "title": "Section C — Funding Sought from AIF / SIDBI",
+          "fields": [
+            { "key": "totalFunding", "label": "Total Funding Requirement (₹ Crore)", "type": "numeric", "required": true },
+            { "key": "amountFromSidbi", "label": "Amount from SIDBI (₹ Crore)", "type": "numeric", "required": true },
+            { "key": "balanceSources", "label": "Sources for Balance Requirement", "type": "textarea" },
+            { "key": "proposedUse", "label": "Proposed Use of Funds", "type": "textarea" },
+            { "key": "repaymentPeriod", "label": "Repayment Period", "type": "text", "required": true },
+            { "key": "moratorium", "label": "Moratorium Sought", "type": "text" },
+            { "key": "securitiesOffered", "label": "Securities Offered (in brief)", "type": "textarea" },
+            { "key": "rightsDocument", "label": "Rights provided to partner AIF / IM (if any)", "type": "file upload" }
+          ]
+        },
+        "sectionD": {
+          "title": "Section D — Certifications / Compliances",
+          "subsections": {
+            "eligibilityCheck": {
+              "title": "Eligibility Check / Compliance (by Applicant / Partner AIF / IM)",
+              "type": "table with toggles + conditional details",
+              "parameters": [
+                { "sno": "1", "label": "Private / public limited company", "hasDetails": false },
+                { "sno": "2A", "label": "Whether MSME – Turnover < ₹250 Cr", "hasDetails": false },
+                { "sno": "2B", "label": "Whether MSME – Investment in P&M < ₹50 Cr", "hasDetails": true, "detailType": "file upload (ITR)" },
+                { "sno": "3A", "label": "No. of years of existence – Since Year", "hasDetails": true, "detailType": "text" },
+                { "sno": "3B", "label": "Existence upto 10 years", "hasDetails": false },
+                { "sno": "4", "label": "At least one equity round from AIF/FVCI", "hasDetails": true, "detailType": "text (date of last round)" },
+                { "sno": "5", "label": "Aggregate non-exited equity ≥ ₹10 Cr", "hasDetails": false },
+                { "sno": "6", "label": "Operational income ≥ ₹10 Cr (last 2 FYs)", "hasDetails": false },
+                { "sno": "7", "label": "Regular revenue growth trend (12 months)", "hasDetails": true, "detailType": "text" },
+                { "sno": "8", "label": "Net worth ≥ proposed SIDBI assistance", "hasDetails": true, "detailType": "text" },
+                { "sno": "9", "label": "Positive unit economics (contribution per unit)", "hasDetails": true, "detailType": "text" },
+                { "sno": "10", "label": "Cash flow projections with ~25% cushion", "hasDetails": true, "detailType": "text" },
+                { "sno": "11", "label": "Promoter/founder capital invested", "hasDetails": true, "detailType": "text" },
+                { "sno": "12", "label": "DER ≤ 2:1 or debt ≤ 10% of Enterprise Valuation", "hasDetails": true, "detailType": "text" },
+                { "sno": "13", "label": "Not written-off/restructured (last 2 yrs)", "hasDetails": false },
+                { "sno": "14", "label": "Not SMA/stressed (last 12 months)", "hasDetails": false },
+                { "sno": "15", "label": "No regular WC limits with banks", "hasDetails": false },
+                { "sno": "16", "label": "Eligible heads for financing", "hasDetails": false }
+              ]
+            },
+            "pendingLitigations": {
+              "title": "Pending Litigations",
+              "fields": [{ "key": "pendingLitigations", "label": "Any Pending Litigations", "type": "textarea" }]
+            },
+            "declarations": {
+              "title": "Declaration",
+              "fields": [
+                { "key": "declaration_i", "label": "(i) All information is true and correct…", "type": "checkbox", "required": true },
+                { "key": "declaration_ii", "label": "(ii) Consent for CIBIL/credit reports…", "type": "checkbox", "required": true },
+                { "key": "declaration_iii", "label": "(iii) Authorize Partner IM to share info…", "type": "checkbox", "required": true }
+              ]
+            },
+            "signature": {
+              "title": "Applicant Signature",
+              "fields": [
+                { "key": "signPlace", "label": "Place", "type": "text", "required": true },
+                { "key": "signDate", "label": "Date", "type": "date", "required": true },
+                { "key": "signName", "label": "Name", "type": "text", "required": true },
+                { "key": "signDesignation", "label": "Designation (Director / MD)", "type": "text", "required": true },
+                { "key": "signFile", "label": "Applicant Signature (Upload)", "type": "file upload" }
+              ]
+            },
+            "aifConfirmation": {
+              "title": "AIF / Investment Manager Confirmation",
+              "fields": [
+                { "key": "aifName", "label": "Name of AIF / Investment Manager", "type": "text" },
+                { "key": "aifPlace", "label": "Place", "type": "text" },
+                { "key": "aifDate", "label": "Date", "type": "date" },
+                { "key": "aifSignFile", "label": "AIF Authorised Signatory (Upload)", "type": "file upload" }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
